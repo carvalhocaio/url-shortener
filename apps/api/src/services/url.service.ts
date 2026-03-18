@@ -1,5 +1,5 @@
-import { eq, sql } from "drizzle-orm";
 import { urls } from "@url-shortener/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { generateKey, generateSecretKey } from "./keygen";
 
@@ -7,10 +7,7 @@ export async function createShortUrl(targetUrl: string) {
 	const key = generateKey();
 	const secretKey = generateSecretKey();
 
-	const [inserted] = await db
-		.insert(urls)
-		.values({ key, secretKey, targetUrl })
-		.returning();
+	const [inserted] = await db.insert(urls).values({ key, secretKey, targetUrl }).returning();
 
 	return inserted;
 }

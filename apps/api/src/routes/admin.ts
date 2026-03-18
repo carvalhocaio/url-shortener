@@ -1,9 +1,5 @@
 import { Elysia, t } from "elysia";
-import {
-	deleteUrl,
-	findBySecretKey,
-	getAllUrls,
-} from "../services/url.service";
+import { deleteUrl, findBySecretKey, getAllUrls } from "../services/url.service";
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 	.get(

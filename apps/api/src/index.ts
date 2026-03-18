@@ -1,9 +1,9 @@
-import { Elysia } from "elysia";
 import { openapi } from "@elysiajs/openapi";
+import { Elysia } from "elysia";
 import { env } from "./lib/env";
-import { shortenRoutes } from "./routes/shorten";
-import { redirectRoutes } from "./routes/redirect";
 import { adminRoutes } from "./routes/admin";
+import { redirectRoutes } from "./routes/redirect";
+import { shortenRoutes } from "./routes/shorten";
 
 const app = new Elysia()
 	.use(

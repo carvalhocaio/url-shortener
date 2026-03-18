@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
+import { env } from "../lib/env";
 import { createShortUrl } from "../services/url.service";
 import { isUrlReachable } from "../services/validator";
-import { env } from "../lib/env";
 
 export const shortenRoutes = new Elysia({ prefix: "/api" }).post(
 	"/shorten",

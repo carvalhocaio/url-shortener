@@ -8,9 +8,7 @@ describe("isUrlReachable", () => {
 	});
 
 	it("returns false for an unreachable URL", async () => {
-		const result = await isUrlReachable(
-			"https://this-domain-does-not-exist-xyz.invalid",
-		);
+		const result = await isUrlReachable("https://this-domain-does-not-exist-xyz.invalid");
 		expect(result).toBe(false);
 	});
 });
