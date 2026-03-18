@@ -1,7 +1,24 @@
 import { Elysia, t } from "elysia";
+import { auth } from "../lib/auth";
 import { deleteUrl, findBySecretKey, getAllUrls } from "../services/url.service";
 
+const authMiddleware = new Elysia({ name: "auth-middleware" }).macro({
+	auth: {
+		async resolve({ status, request: { headers } }) {
+			const session = await auth.api.getSession({ headers });
+
+			if (!session) return status(401);
+
+			return {
+				user: session.user,
+				session: session.session,
+			};
+		},
+	},
+});
+
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
+	.use(authMiddleware)
 	.get(
 		"/urls",
 		async () => {
@@ -16,6 +33,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 			}));
 		},
 		{
+			auth: true,
 			detail: {
 				tags: ["Admin"],
 				summary: "List all URLs",
@@ -36,6 +54,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 			return { deleted: { id: deleted.id, key: deleted.key } };
 		},
 		{
+			auth: true,
 			params: t.Object({
 				secretKey: t.String(),
 			}),

@@ -1,11 +1,6 @@
-import {
-	boolean,
-	integer,
-	pgTable,
-	serial,
-	text,
-	timestamp,
-} from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+
+export { user, session, account, verification } from "./auth-schema";
 
 export const urls = pgTable("urls", {
 	id: serial("id").primaryKey(),

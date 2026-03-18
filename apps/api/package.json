@@ -14,6 +14,7 @@
 		"@elysiajs/cors": "^1.4.1",
 		"@elysiajs/openapi": "^1.2.0",
 		"@url-shortener/db": "workspace:*",
+		"better-auth": "^1.5.5",
 		"drizzle-orm": "^0.38.0",
 		"elysia": "^1.2.0",
 		"postgres": "^3.4.5"
