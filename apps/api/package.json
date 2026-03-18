@@ -11,6 +11,7 @@
 		"check": "biome check ."
 	},
 	"dependencies": {
+		"@elysiajs/cors": "^1.4.1",
 		"@elysiajs/openapi": "^1.2.0",
 		"@url-shortener/db": "workspace:*",
 		"drizzle-orm": "^0.38.0",

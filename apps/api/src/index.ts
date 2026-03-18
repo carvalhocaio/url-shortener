@@ -1,3 +1,4 @@
+import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
 import { env } from "./lib/env";
@@ -7,6 +8,7 @@ import { redirectRoutes } from "./routes/redirect";
 import { shortenRoutes } from "./routes/shorten";
 
 const app = new Elysia()
+	.use(cors())
 	.use(
 		openapi({
 			documentation: {

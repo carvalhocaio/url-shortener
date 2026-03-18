@@ -6,6 +6,7 @@
 		"build": "turbo run build",
 		"dev": "turbo run dev",
 		"dev:api": "turbo run dev --filter=@url-shortener/api",
+		"dev:web": "turbo run dev --filter=@url-shortener/web",
 		"lint": "turbo run lint",
 		"check": "turbo run check",
 		"test": "turbo run test",
