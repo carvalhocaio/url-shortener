@@ -30,3 +30,8 @@ packages/db/drizzle/meta/
 
 # Test
 coverage/
+
+# Agents Skills
+.agents/
+.claude/
+skills-lock.json
