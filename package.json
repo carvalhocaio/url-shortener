@@ -1,0 +1,21 @@
+{
+	"name": "url-shortener",
+	"private": true,
+	"workspaces": ["apps/*", "packages/*"],
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"dev:api": "turbo run dev --filter=@url-shortener/api",
+		"lint": "turbo run lint",
+		"check": "turbo run check",
+		"test": "turbo run test",
+		"format": "biome format --write .",
+		"db:generate": "turbo run db:generate --filter=@url-shortener/db",
+		"db:migrate": "turbo run db:migrate --filter=@url-shortener/db"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"turbo": "^2.3.0"
+	},
+	"packageManager": "bun@1.2.0"
+}

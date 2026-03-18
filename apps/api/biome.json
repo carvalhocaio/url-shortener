@@ -1,0 +1,3 @@
+{
+	"extends": ["@url-shortener/biome-config/biome.json"]
+}

@@ -1,0 +1,23 @@
+{
+	"name": "@url-shortener/api",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bun run --env-file ../../.env --watch src/index.ts",
+		"test": "bun test --env-file ../../.env",
+		"check": "biome check ."
+	},
+	"dependencies": {
+		"@elysiajs/openapi": "^1.2.0",
+		"@url-shortener/db": "workspace:*",
+		"drizzle-orm": "^0.38.0",
+		"elysia": "^1.2.0",
+		"postgres": "^3.4.5"
+	},
+	"devDependencies": {
+		"@url-shortener/biome-config": "workspace:*",
+		"@url-shortener/tsconfig": "workspace:*",
+		"bun-types": "^1.2.0"
+	}
+}
