@@ -3,12 +3,12 @@ import { Elysia, t } from "elysia";
 export const healthRoutes = new Elysia().get(
 	"/health",
 	() => ({
-		title: "URL Shortener",
+		title: "Link Arch",
 		version: "1.0.0",
-		description: "A fast, lightweight URL shortener API built with Bun and Elysia.",
+		description: "A fast, lightweight link management API built with Bun and Elysia.",
 		docs: "/openapi",
 		author: "https://github.com/carvalhocaio",
-		repository: "https://github.com/carvalhocaio/url-shortener",
+		repository: "https://github.com/carvalhocaio/link-arch",
 	}),
 	{
 		response: t.Object({

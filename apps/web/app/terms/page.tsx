@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "Terms of Service - URL Shortener",
+	title: "Terms of Service - Link Arch",
 };
 
 export default function TermsPage() {
@@ -27,8 +27,8 @@ export default function TermsPage() {
 					<section className="space-y-3">
 						<h2 className="text-xl font-semibold">1. Agreement to Terms</h2>
 						<p className="text-sm leading-relaxed text-muted-foreground">
-							By accessing or using URL Shortener (&quot;the Service&quot;), you agree to be bound
-							by these Terms of Service. If you do not agree to these terms, please do not use the
+							By accessing or using Link Arch (&quot;the Service&quot;), you agree to be bound by
+							these Terms of Service. If you do not agree to these terms, please do not use the
 							Service.
 						</p>
 					</section>
@@ -36,7 +36,7 @@ export default function TermsPage() {
 					<section className="space-y-3">
 						<h2 className="text-xl font-semibold">2. Description of Service</h2>
 						<p className="text-sm leading-relaxed text-muted-foreground">
-							URL Shortener provides a URL shortening service that allows users to create shortened
+							Link Arch provides a URL shortening service that allows users to create shortened
 							versions of long URLs. The Service may also provide analytics and management features
 							for shortened URLs.
 						</p>
@@ -70,9 +70,9 @@ export default function TermsPage() {
 					<section className="space-y-3">
 						<h2 className="text-xl font-semibold">5. Intellectual Property</h2>
 						<p className="text-sm leading-relaxed text-muted-foreground">
-							The Service and its original content, features, and functionality are owned by URL
-							Shortener and are protected by copyright, trademark, and other intellectual property
-							laws. You retain ownership of the URLs you shorten through the Service.
+							The Service and its original content, features, and functionality are owned by Link
+							Arch and are protected by copyright, trademark, and other intellectual property laws.
+							You retain ownership of the URLs you shorten through the Service.
 						</p>
 					</section>
 
@@ -100,7 +100,7 @@ export default function TermsPage() {
 					<section className="space-y-3">
 						<h2 className="text-xl font-semibold">8. Limitation of Liability</h2>
 						<p className="text-sm leading-relaxed text-muted-foreground">
-							In no event shall URL Shortener, its directors, employees, or agents be liable for any
+							In no event shall Link Arch, its directors, employees, or agents be liable for any
 							indirect, incidental, special, consequential, or punitive damages, including loss of
 							profits, data, or other intangible losses, resulting from your use of or inability to
 							use the Service.
@@ -121,7 +121,7 @@ export default function TermsPage() {
 						<p className="text-sm leading-relaxed text-muted-foreground">
 							If you have any questions about these Terms of Service, please contact us through our{" "}
 							<a
-								href="https://github.com/carvalhocaio/url-shortener"
+								href="https://github.com/carvalhocaio/link-arch"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="underline underline-offset-4 hover:text-primary"

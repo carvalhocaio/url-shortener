@@ -1,6 +1,6 @@
-# URL Shortener
+# Link Arch
 
-A fast, lightweight URL shortener built with Bun, Elysia, and Next.js. It generates short links, tracks click counts, validates target URL reachability, and exposes auto-generated OpenAPI documentation. Includes a web frontend with dark mode support.
+A fast, lightweight link management platform built with Bun, Elysia, and Next.js. It generates short links, tracks click counts, validates target URL reachability, and exposes auto-generated OpenAPI documentation. Includes a web frontend with dark mode support.
 
 ## Tech Stack
 
@@ -36,8 +36,8 @@ A fast, lightweight URL shortener built with Bun, Elysia, and Next.js. It genera
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/carvalhocaio/url-shortener.git
-cd url-shortener
+git clone https://github.com/carvalhocaio/link-arch.git
+cd link-arch
 ```
 
 ### 2. Install dependencies
@@ -97,7 +97,7 @@ All scripts are run from the monorepo root with `bun run <script>`.
 
 This is a Turborepo monorepo:
 
-- **`apps/api`** -- The Elysia-based URL shortener API
+- **`apps/api`** -- The Elysia-based Link Arch API
 - **`apps/web`** -- The Next.js web frontend (shadcn/ui, React Query, next-themes)
 - **`packages/db`** -- Shared database schema, migrations, and type exports (Drizzle ORM)
 - **`packages/biome-config`** -- Shared Biome linter/formatter configuration

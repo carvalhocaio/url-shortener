@@ -20,9 +20,9 @@ const app = new Elysia()
 		openapi({
 			documentation: {
 				info: {
-					title: "URL Shortener API",
+					title: "Link Arch API",
 					version: "1.0.0",
-					description: "A simple and fast URL shortener",
+					description: "A simple and fast link management platform",
 				},
 				tags: [
 					{ name: "Health", description: "API health check" },

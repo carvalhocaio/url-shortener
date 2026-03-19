@@ -1,5 +1,5 @@
 {
-	"extends": "@url-shortener/tsconfig/base.json",
+	"extends": "@link-arch/tsconfig/base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src"

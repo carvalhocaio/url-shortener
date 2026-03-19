@@ -1,4 +1,4 @@
-import { urls } from "@url-shortener/db/schema";
+import { urls } from "@link-arch/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { generateKey, generateSecretKey } from "./keygen";

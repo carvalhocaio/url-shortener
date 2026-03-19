@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy - URL Shortener",
+	title: "Privacy Policy - Link Arch",
 };
 
 export default function PrivacyPage() {
@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 					<section className="space-y-3">
 						<h2 className="text-xl font-semibold">1. Information We Collect</h2>
 						<p className="text-sm leading-relaxed text-muted-foreground">
-							When you use URL Shortener (&quot;the Service&quot;), we may collect the following
+							When you use Link Arch (&quot;the Service&quot;), we may collect the following
 							information:
 						</p>
 						<ul className="list-disc space-y-1 pl-6 text-sm text-muted-foreground">
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
 						<p className="text-sm leading-relaxed text-muted-foreground">
 							If you have any questions about this Privacy Policy, please contact us through our{" "}
 							<a
-								href="https://github.com/carvalhocaio/url-shortener"
+								href="https://github.com/carvalhocaio/link-arch"
 								target="_blank"
 								rel="noopener noreferrer"
 								className="underline underline-offset-4 hover:text-primary"
