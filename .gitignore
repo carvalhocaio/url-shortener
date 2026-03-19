@@ -35,3 +35,4 @@ coverage/
 .agents/
 .claude/
 skills-lock.json
+opencode.json
