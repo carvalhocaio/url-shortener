@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, LayoutDashboard, Link2, LinkIcon, Sparkles } from "lucide-react";
+import { LayoutDashboard, Link2, LinkIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -28,7 +28,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 		label: string;
 		href: string;
 		icon: React.ComponentType<{ className?: string }>;
-		disabled?: boolean;
 	}> = [
 		{
 			label: "Dashboard",
@@ -39,12 +38,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 			label: "My Links",
 			href: "/my-links",
 			icon: LinkIcon,
-		},
-		{
-			label: "Analytics",
-			href: "/",
-			icon: BarChart3,
-			disabled: true,
 		},
 	] as const;
 
@@ -60,16 +53,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 								</div>
 								<div className="grid flex-1 text-left text-sm leading-tight">
 									<span className="truncate font-semibold">LinkArch</span>
-									<span className="truncate text-xs text-muted-foreground">Infrastructure</span>
 								</div>
 							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
-
-				<div className="mx-2 rounded-md bg-card px-3 py-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden">
-					Professional Plan
-				</div>
 			</SidebarHeader>
 
 			<SidebarContent>
@@ -78,23 +66,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 						<SidebarMenu>
 							{items.map((item) => (
 								<SidebarMenuItem key={item.label}>
-									<SidebarMenuButton
-										asChild={!item.disabled}
-										isActive={!item.disabled && pathname === item.href}
-										tooltip={item.label}
-										className={item.disabled ? "cursor-default opacity-60" : undefined}
-									>
-										{item.disabled ? (
-											<div>
-												<item.icon />
-												<span>{item.label}</span>
-											</div>
-										) : (
-											<Link href={item.href}>
-												<item.icon />
-												<span>{item.label}</span>
-											</Link>
-										)}
+									<SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+										<Link href={item.href}>
+											<item.icon />
+											<span>{item.label}</span>
+										</Link>
 									</SidebarMenuButton>
 								</SidebarMenuItem>
 							))}

@@ -96,28 +96,28 @@ export function NavUser({
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
 						<DropdownMenuSub>
-							<DropdownMenuSubTrigger>
+							<DropdownMenuSubTrigger className="cursor-pointer">
 								<Sun className="size-4 scale-100 rotate-0 dark:hidden" />
 								<Moon className="hidden size-4 scale-100 rotate-0 dark:block" />
 								Theme
 							</DropdownMenuSubTrigger>
 							<DropdownMenuSubContent>
-								<DropdownMenuItem onClick={() => setTheme("light")}>
+								<DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("light")}>
 									<Sun />
 									Light
 								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => setTheme("dark")}>
+								<DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("dark")}>
 									<Moon />
 									Dark
 								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => setTheme("system")}>
+								<DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("system")}>
 									<Monitor />
 									System
 								</DropdownMenuItem>
 							</DropdownMenuSubContent>
 						</DropdownMenuSub>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem onClick={handleSignOut}>
+						<DropdownMenuItem className="cursor-pointer" onClick={handleSignOut}>
 							<LogOut />
 							Sign out
 						</DropdownMenuItem>
