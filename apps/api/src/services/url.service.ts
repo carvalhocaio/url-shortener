@@ -1,13 +1,16 @@
 import { urls } from "@url-shortener/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { generateKey, generateSecretKey } from "./keygen";
 
-export async function createShortUrl(targetUrl: string) {
+export async function createShortUrl(targetUrl: string, userId: string) {
 	const key = generateKey();
 	const secretKey = generateSecretKey();
 
-	const [inserted] = await db.insert(urls).values({ key, secretKey, targetUrl }).returning();
+	const [inserted] = await db
+		.insert(urls)
+		.values({ key, secretKey, targetUrl, userId })
+		.returning();
 
 	return inserted;
 }
@@ -24,6 +27,12 @@ export async function findBySecretKey(secretKey: string) {
 	});
 }
 
+export async function findBySecretKeyAndUserId(secretKey: string, userId: string) {
+	return db.query.urls.findFirst({
+		where: and(eq(urls.secretKey, secretKey), eq(urls.userId, userId)),
+	});
+}
+
 export async function incrementClicks(id: number) {
 	await db
 		.update(urls)
@@ -34,8 +43,8 @@ export async function incrementClicks(id: number) {
 		.where(eq(urls.id, id));
 }
 
-export async function getAllUrls() {
-	return db.select().from(urls).orderBy(urls.createdAt);
+export async function getUrlsByUserId(userId: string) {
+	return db.select().from(urls).where(eq(urls.userId, userId)).orderBy(desc(urls.createdAt));
 }
 
 export async function deleteUrl(id: number) {
@@ -48,6 +57,15 @@ export async function deactivateUrl(id: number) {
 		.update(urls)
 		.set({ isActive: false, updatedAt: new Date() })
 		.where(eq(urls.id, id))
+		.returning();
+	return updated;
+}
+
+export async function deactivateUrlByIdAndUserId(id: number, userId: string) {
+	const [updated] = await db
+		.update(urls)
+		.set({ isActive: false, updatedAt: new Date() })
+		.where(and(eq(urls.id, id), eq(urls.userId, userId)))
 		.returning();
 	return updated;
 }

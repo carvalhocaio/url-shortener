@@ -1,28 +1,18 @@
 import { Elysia, t } from "elysia";
-import { auth } from "../lib/auth";
-import { deleteUrl, findBySecretKey, getAllUrls } from "../services/url.service";
-
-const authMiddleware = new Elysia({ name: "auth-middleware" }).macro({
-	auth: {
-		async resolve({ status, request: { headers } }) {
-			const session = await auth.api.getSession({ headers });
-
-			if (!session) return status(401);
-
-			return {
-				user: session.user,
-				session: session.session,
-			};
-		},
-	},
-});
+import { authMiddleware } from "../lib/auth-middleware";
+import {
+	deactivateUrlByIdAndUserId,
+	deleteUrl,
+	findBySecretKeyAndUserId,
+	getUrlsByUserId,
+} from "../services/url.service";
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 	.use(authMiddleware)
 	.get(
 		"/urls",
-		async () => {
-			const all = await getAllUrls();
+		async ({ user }) => {
+			const all = await getUrlsByUserId(user.id);
 			return all.map((u) => ({
 				id: u.id,
 				key: u.key,
@@ -36,14 +26,37 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 			auth: true,
 			detail: {
 				tags: ["Admin"],
-				summary: "List all URLs",
+				summary: "List my URLs",
+			},
+		},
+	)
+	.post(
+		"/urls/:id/deactivate",
+		async ({ params, set, user }) => {
+			const updated = await deactivateUrlByIdAndUserId(params.id, user.id);
+
+			if (!updated) {
+				set.status = 404;
+				return { error: "URL not found" };
+			}
+
+			return { deactivated: { id: updated.id, key: updated.key, isActive: updated.isActive } };
+		},
+		{
+			auth: true,
+			params: t.Object({
+				id: t.Numeric(),
+			}),
+			detail: {
+				tags: ["Admin"],
+				summary: "Deactivate one of my URLs",
 			},
 		},
 	)
 	.delete(
 		"/urls/:secretKey",
-		async ({ params, set }) => {
-			const record = await findBySecretKey(params.secretKey);
+		async ({ params, set, user }) => {
+			const record = await findBySecretKeyAndUserId(params.secretKey, user.id);
 
 			if (!record) {
 				set.status = 404;
@@ -60,7 +73,7 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 			}),
 			detail: {
 				tags: ["Admin"],
-				summary: "Delete a URL by secret key",
+				summary: "Delete one of my URLs by secret key",
 			},
 		},
 	);
