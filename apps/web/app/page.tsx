@@ -1,12 +1,15 @@
 "use client";
 
 import {
+	Check,
 	CheckCircle2,
 	Copy,
 	Edit3,
+	ExternalLink,
 	Info,
 	KeyRound,
 	Link2,
+	Loader2,
 	Moon,
 	MousePointer2,
 	Star,
@@ -16,10 +19,22 @@ import {
 	Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { useShortenUrl } from "@/hooks/use-shorten-url";
+import type { ShortenResponse } from "@/lib/api";
 
 const quickStats = [
 	{
@@ -74,9 +89,54 @@ const trafficOrigins = [
 
 export default function Page() {
 	const { resolvedTheme, setTheme } = useTheme();
+	const [url, setUrl] = useState("");
+	const [createdLink, setCreatedLink] = useState<ShortenResponse | null>(null);
+	const [copied, setCopied] = useState(false);
+	const { mutate: shortenLink, isPending: isShortening } = useShortenUrl();
+
+	const normalizedUrl = url.trim();
+	const isUrlValid = isValidUrl(normalizedUrl);
 
 	function toggleTheme() {
 		setTheme(resolvedTheme === "dark" ? "light" : "dark");
+	}
+
+	function handleShortenLink() {
+		if (!isUrlValid || isShortening) {
+			return;
+		}
+
+		shortenLink(normalizedUrl, {
+			onSuccess: (data) => {
+				setCreatedLink(data);
+				setCopied(false);
+				setUrl("");
+			},
+			onError: (error) => {
+				toast.error(error.message);
+			},
+		});
+	}
+
+	async function handleCopyShortUrl() {
+		if (!createdLink) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(createdLink.shortUrl);
+			setCopied(true);
+			toast.success("Short URL copied to clipboard");
+		} catch {
+			toast.error("Failed to copy short URL");
+		}
+	}
+
+	function handleModalChange(open: boolean) {
+		if (!open) {
+			setCreatedLink(null);
+			setCopied(false);
+		}
 	}
 
 	return (
@@ -99,7 +159,13 @@ export default function Page() {
 					<section className="relative overflow-hidden rounded-xl border border-border/50 bg-card p-6 shadow-[0_20px_40px_rgb(26_28_28_/_5%)] md:p-8">
 						<div className="pointer-events-none absolute -top-20 -right-12 size-52 rounded-full bg-primary/10 blur-3xl" />
 						<div className="pointer-events-none absolute -bottom-24 -left-16 size-52 rounded-full bg-secondary/70 blur-3xl" />
-						<div className="relative flex flex-col gap-4 md:flex-row md:items-end">
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								handleShortenLink();
+							}}
+							className="relative flex flex-col gap-4 md:flex-row md:items-end"
+						>
 							<div className="flex-1 space-y-2">
 								<p className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
 									Shortener New Link
@@ -109,15 +175,26 @@ export default function Page() {
 									<input
 										type="url"
 										placeholder="https://very-long-architectural-resource-url.com/structure/sub-page"
+										value={url}
+										onChange={(event) => setUrl(event.target.value)}
+										disabled={isShortening}
 										className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
 									/>
 								</div>
 							</div>
-							<Button className="h-12 px-7 text-sm font-semibold">
-								Shorten Link
-								<Zap className="size-4" />
+							<Button
+								type="submit"
+								disabled={!isUrlValid || isShortening}
+								className="h-12 cursor-pointer px-7 text-sm font-semibold disabled:cursor-not-allowed"
+							>
+								{isShortening ? "Shortening..." : "Shorten Link"}
+								{isShortening ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									<Zap className="size-4" />
+								)}
 							</Button>
-						</div>
+						</form>
 						<div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
 							<span className="flex items-center gap-1.5">
 								<CheckCircle2 className="size-3.5 text-primary" />
@@ -133,6 +210,42 @@ export default function Page() {
 							</span>
 						</div>
 					</section>
+
+					<Dialog open={!!createdLink} onOpenChange={handleModalChange}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Short URL Ready</DialogTitle>
+								<DialogDescription>
+									Your shortened link has been created successfully.
+								</DialogDescription>
+							</DialogHeader>
+							{createdLink ? (
+								<div className="space-y-3">
+									<Input
+										readOnly
+										value={createdLink.shortUrl}
+										className="ghost-border h-10 bg-card font-mono text-xs"
+									/>
+									<div className="grid grid-cols-2 gap-2">
+										<Button
+											variant="outline"
+											onClick={handleCopyShortUrl}
+											className="cursor-pointer"
+										>
+											{copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+											{copied ? "Copied" : "Copy"}
+										</Button>
+										<Button variant="outline" asChild className="cursor-pointer">
+											<a href={createdLink.shortUrl} target="_blank" rel="noopener noreferrer">
+												Open
+												<ExternalLink className="size-4" />
+											</a>
+										</Button>
+									</div>
+								</div>
+							) : null}
+						</DialogContent>
+					</Dialog>
 
 					<section className="grid gap-6 md:grid-cols-3">
 						{quickStats.map((stat) => (
@@ -296,4 +409,17 @@ export default function Page() {
 			</SidebarInset>
 		</SidebarProvider>
 	);
+}
+
+function isValidUrl(value: string) {
+	if (!value) {
+		return false;
+	}
+
+	try {
+		const parsedUrl = new URL(value);
+		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+	} catch {
+		return false;
+	}
 }
