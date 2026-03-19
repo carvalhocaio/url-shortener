@@ -1,23 +1,26 @@
 {
-	"name": "link-arch",
-	"private": true,
-	"workspaces": ["apps/*", "packages/*"],
-	"scripts": {
-		"build": "turbo run build",
-		"dev": "turbo run dev",
-		"dev:api": "turbo run dev --filter=@link-arch/api",
-		"dev:web": "turbo run dev --filter=@link-arch/web",
-		"lint": "turbo run lint",
-		"check": "turbo run check",
-		"test": "turbo run test",
-		"format": "biome format --write .",
-		"db:generate": "turbo run db:generate --filter=@link-arch/db",
-		"db:migrate": "turbo run db:migrate --filter=@link-arch/db"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
-		"shadcn": "^4.0.8",
-		"turbo": "^2.3.0"
-	},
-	"packageManager": "bun@1.2.0"
+  "name": "link-arch",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@link-arch/api",
+    "dev:web": "turbo run dev --filter=@link-arch/web",
+    "lint": "turbo run lint",
+    "check": "turbo run check",
+    "test": "turbo run test",
+    "format": "biome format --write .",
+    "db:generate": "turbo run db:generate --filter=@link-arch/db",
+    "db:migrate": "turbo run db:migrate --filter=@link-arch/db"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "shadcn": "^4.0.8",
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "bun@1.2.0"
 }

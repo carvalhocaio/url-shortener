@@ -25,9 +25,6 @@ Thumbs.db
 # Bun
 bun.lock
 
-# Drizzle
-packages/db/drizzle/meta/
-
 # Test
 coverage/
 
@@ -35,4 +32,3 @@ coverage/
 .agents/
 .claude/
 skills-lock.json
-opencode.json
