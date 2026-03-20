@@ -25,16 +25,19 @@ export function UrlShortenerForm({ onSuccess }: UrlShortenerFormProps) {
 			return;
 		}
 
-		mutate(url.trim(), {
-			onSuccess: (data) => {
-				onSuccess(data);
-				setUrl("");
-				toast.success("URL shortened successfully!");
+		mutate(
+			{ url: url.trim() },
+			{
+				onSuccess: (data) => {
+					onSuccess(data);
+					setUrl("");
+					toast.success("URL shortened successfully!");
+				},
+				onError: (error) => {
+					toast.error(error.message);
+				},
 			},
-			onError: (error) => {
-				toast.error(error.message);
-			},
-		});
+		);
 	}
 
 	return (

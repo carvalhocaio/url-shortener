@@ -1,9 +1,12 @@
 import { Elysia, t } from "elysia";
 import { authMiddleware } from "../lib/auth-middleware";
+import { getCustomKeyValidationError, normalizeCustomKey } from "../services/keygen";
 import {
+	UrlKeyAlreadyExistsError,
 	getUrlsByUserId,
 	softDeleteUrlByIdAndUserId,
 	updateUrlByIdAndUserId,
+	updateUrlKeyByIdAndUserId,
 	updateUrlStatusByIdAndUserId,
 } from "../services/url.service";
 import { isUrlReachable } from "../services/validator";
@@ -71,6 +74,57 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 			detail: {
 				tags: ["Admin"],
 				summary: "Update one of my URLs",
+			},
+		},
+	)
+	.patch(
+		"/urls/:id/key",
+		async ({ params, body, set, user }) => {
+			const normalizedKey = normalizeCustomKey(body.key);
+			const keyValidationError = getCustomKeyValidationError(normalizedKey);
+
+			if (keyValidationError) {
+				set.status = 400;
+				return { error: keyValidationError };
+			}
+
+			try {
+				const updated = await updateUrlKeyByIdAndUserId(params.id, user.id, normalizedKey);
+
+				if (!updated) {
+					set.status = 404;
+					return { error: "URL not found" };
+				}
+
+				return {
+					id: updated.id,
+					key: updated.key,
+					targetUrl: updated.targetUrl,
+					clicks: updated.clicks,
+					isActive: updated.isActive,
+					expiresAt: updated.expiresAt,
+					createdAt: updated.createdAt,
+				};
+			} catch (error) {
+				if (error instanceof UrlKeyAlreadyExistsError) {
+					set.status = 409;
+					return { error: error.message };
+				}
+
+				throw error;
+			}
+		},
+		{
+			auth: true,
+			params: t.Object({
+				id: t.Numeric(),
+			}),
+			body: t.Object({
+				key: t.String(),
+			}),
+			detail: {
+				tags: ["Admin"],
+				summary: "Update one of my URL keys",
 			},
 		},
 	)

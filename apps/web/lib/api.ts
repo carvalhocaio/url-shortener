@@ -39,16 +39,26 @@ export interface UpdateMyUrlStatusPayload {
 	isActive: boolean;
 }
 
+export interface UpdateMyUrlKeyPayload {
+	id: number;
+	key: string;
+}
+
 export interface DeleteMyUrlPayload {
 	id: number;
 }
 
-export async function shortenUrl(url: string): Promise<ShortenResponse> {
+export interface ShortenPayload {
+	url: string;
+	key?: string;
+}
+
+export async function shortenUrl(payload: ShortenPayload): Promise<ShortenResponse> {
 	const response = await fetch(`${API_URL}/api/shorten`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		credentials: "include",
-		body: JSON.stringify({ url }),
+		body: JSON.stringify(payload),
 	});
 
 	if (!response.ok) {
@@ -111,6 +121,22 @@ export async function updateMyUrlStatus(payload: UpdateMyUrlStatusPayload): Prom
 	if (!response.ok) {
 		const error: ShortenErrorResponse = await response.json();
 		throw new Error(error.error ?? "Failed to update URL status");
+	}
+
+	return response.json();
+}
+
+export async function updateMyUrlKey(payload: UpdateMyUrlKeyPayload): Promise<AdminUrl> {
+	const response = await fetch(`${API_URL}/api/admin/urls/${payload.id}/key`, {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		credentials: "include",
+		body: JSON.stringify({ key: payload.key }),
+	});
+
+	if (!response.ok) {
+		const error: ShortenErrorResponse = await response.json();
+		throw new Error(error.error ?? "Failed to update URL key");
 	}
 
 	return response.json();

@@ -8,6 +8,7 @@ import {
 	Link2,
 	Loader2,
 	MousePointer2,
+	RefreshCw,
 	Star,
 	TrendingUp,
 	Zap,
@@ -32,25 +33,37 @@ import { useDeleteMyUrl } from "@/hooks/use-delete-my-url";
 import { useMyUrls } from "@/hooks/use-my-urls";
 import { useShortenUrl } from "@/hooks/use-shorten-url";
 import { useUpdateMyUrl } from "@/hooks/use-update-my-url";
+import { useUpdateMyUrlKey } from "@/hooks/use-update-my-url-key";
 import { useUpdateMyUrlStatus } from "@/hooks/use-update-my-url-status";
 import { type ActivityItem, toActivityItems, toShortUrl } from "@/lib/activity";
 import type { ShortenResponse } from "@/lib/api";
 import { copyToClipboard } from "@/lib/clipboard";
 import { buildQuickStats } from "@/lib/dashboard-metrics";
 import { formatExpiryInBrowserTimezone, toDateInputValueFromUtc } from "@/lib/expiry";
-import { isValidUrl } from "@/lib/url";
+import {
+	generateSuggestedCustomKey,
+	getCustomKeyValidationError,
+	isValidUrl,
+	normalizeCustomKey,
+} from "@/lib/url";
+
+const CUSTOM_KEY_CONFLICT_ERROR = "Custom URL key is already in use";
 
 export default function Page() {
 	const { data: myUrls, isLoading: isLoadingMyUrls } = useMyUrls();
 	const [url, setUrl] = useState("");
+	const [customKey, setCustomKey] = useState(() => generateSuggestedCustomKey());
+	const [isCustomKeyEdited, setIsCustomKeyEdited] = useState(false);
 	const [createdLink, setCreatedLink] = useState<ShortenResponse | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [editingActivity, setEditingActivity] = useState<ActivityItem | null>(null);
 	const [editingUrl, setEditingUrl] = useState("");
+	const [editingKey, setEditingKey] = useState("");
 	const [editingIsActive, setEditingIsActive] = useState(true);
 	const [editingExpiresOn, setEditingExpiresOn] = useState("");
 	const { mutate: shortenLink, isPending: isShortening } = useShortenUrl();
 	const { mutate: updateMyUrl, isPending: isUpdatingUrl } = useUpdateMyUrl();
+	const { mutate: updateMyUrlKey, isPending: isUpdatingUrlKey } = useUpdateMyUrlKey();
 	const { mutate: updateMyUrlStatus, isPending: isUpdatingUrlStatus } = useUpdateMyUrlStatus();
 	const { mutate: deleteMyUrl, isPending: isDeletingUrl } = useDeleteMyUrl();
 	const quickStats = useMemo(() => buildQuickStats(myUrls ?? []), [myUrls]);
@@ -60,23 +73,58 @@ export default function Page() {
 	}, [myUrls]);
 
 	const normalizedUrl = url.trim();
+	const normalizedCustomKey = normalizeCustomKey(customKey);
+	const normalizedEditingKey = normalizeCustomKey(editingKey);
 	const isUrlValid = isValidUrl(normalizedUrl);
+	const customKeyError = getCustomKeyValidationError(normalizedCustomKey);
+	const editingKeyError = getCustomKeyValidationError(normalizedEditingKey);
+
+	function resetCustomKeySuggestion() {
+		setCustomKey(generateSuggestedCustomKey());
+		setIsCustomKeyEdited(false);
+	}
+
+	function regenerateCustomKey() {
+		resetCustomKeySuggestion();
+	}
+
+	function submitShortenRequest(key: string, allowRetry: boolean) {
+		shortenLink(
+			{ url: normalizedUrl, key },
+			{
+				onSuccess: (data) => {
+					setCreatedLink(data);
+					setCopied(false);
+					setUrl("");
+					resetCustomKeySuggestion();
+				},
+				onError: (error) => {
+					if (allowRetry && error.message === CUSTOM_KEY_CONFLICT_ERROR) {
+						const retryKey = generateSuggestedCustomKey();
+						setCustomKey(retryKey);
+						setIsCustomKeyEdited(false);
+						submitShortenRequest(retryKey, false);
+						return;
+					}
+
+					toast.error(error.message);
+				},
+			},
+		);
+	}
 
 	function handleShortenLink() {
-		if (!isUrlValid || isShortening) {
+		if (!isUrlValid || !!customKeyError || isShortening) {
 			return;
 		}
 
-		shortenLink(normalizedUrl, {
-			onSuccess: (data) => {
-				setCreatedLink(data);
-				setCopied(false);
-				setUrl("");
-			},
-			onError: (error) => {
-				toast.error(error.message);
-			},
-		});
+		const effectiveKey = normalizedCustomKey || generateSuggestedCustomKey();
+		if (!normalizedCustomKey) {
+			setCustomKey(effectiveKey);
+			setIsCustomKeyEdited(false);
+		}
+
+		submitShortenRequest(effectiveKey, !isCustomKeyEdited);
 	}
 
 	async function handleCopyShortUrl() {
@@ -98,6 +146,7 @@ export default function Page() {
 		if (!open) {
 			setCreatedLink(null);
 			setCopied(false);
+			resetCustomKeySuggestion();
 		}
 	}
 
@@ -112,6 +161,7 @@ export default function Page() {
 		setEditingActivity(activity);
 		setEditingUrl(activity.targetUrl);
 		const currentUrl = myUrlsById.get(activity.id);
+		setEditingKey(currentUrl?.key ?? activity.key);
 		setEditingIsActive(currentUrl?.isActive ?? true);
 		setEditingExpiresOn(toDateInputValueFromUtc(currentUrl?.expiresAt));
 	}
@@ -120,6 +170,7 @@ export default function Page() {
 		if (!open) {
 			setEditingActivity(null);
 			setEditingUrl("");
+			setEditingKey("");
 			setEditingIsActive(true);
 			setEditingExpiresOn("");
 		}
@@ -135,10 +186,11 @@ export default function Page() {
 		const currentIsActive = currentUrl?.isActive ?? true;
 		const currentExpiresOn = toDateInputValueFromUtc(currentUrl?.expiresAt);
 		const statusChanged = currentIsActive !== editingIsActive;
+		const hasKeyChange = normalizedEditingKey !== editingActivity.key;
 		const hasUrlChange = normalizedEditUrl !== editingActivity.targetUrl;
 		const hasExpiryChange = currentExpiresOn !== editingExpiresOn;
 
-		if (!statusChanged && !hasUrlChange && !hasExpiryChange) {
+		if (!statusChanged && !hasKeyChange && !hasUrlChange && !hasExpiryChange) {
 			toast.message("No changes to save");
 			return;
 		}
@@ -148,99 +200,70 @@ export default function Page() {
 			return;
 		}
 
-		if (hasUrlChange) {
-			updateMyUrl(
-				{ id: editingActivity.id, url: normalizedEditUrl, expiresAt: editingExpiresOn || null },
-				{
-					onSuccess: () => {
-						if (statusChanged) {
-							updateMyUrlStatus(
-								{ id: editingActivity.id, isActive: editingIsActive },
-								{
-									onSuccess: () => {
-										toast.success("Link updated");
-										setEditingActivity(null);
-										setEditingUrl("");
-										setEditingIsActive(true);
-										setEditingExpiresOn("");
-									},
-									onError: (error) => {
-										toast.error(error.message);
-									},
-								},
-							);
-							return;
-						}
-
-						toast.success("Link destination updated");
-						setEditingActivity(null);
-						setEditingUrl("");
-						setEditingIsActive(true);
-						setEditingExpiresOn("");
-					},
-					onError: (error) => {
-						toast.error(error.message);
-					},
-				},
-			);
-
+		if (editingKeyError) {
+			toast.error(editingKeyError);
 			return;
 		}
 
-		if (hasExpiryChange) {
+		const finishUpdate = () => {
+			toast.success("Link updated");
+			setEditingActivity(null);
+			setEditingUrl("");
+			setEditingKey("");
+			setEditingIsActive(true);
+			setEditingExpiresOn("");
+		};
+
+		const handleMutationError = (error: Error) => {
+			toast.error(error.message);
+		};
+
+		const applyStatusUpdate = (onDone: () => void) => {
+			if (!statusChanged) {
+				onDone();
+				return;
+			}
+
+			updateMyUrlStatus(
+				{ id: editingActivity.id, isActive: editingIsActive },
+				{
+					onSuccess: onDone,
+					onError: handleMutationError,
+				},
+			);
+		};
+
+		const applyKeyUpdate = (onDone: () => void) => {
+			if (!hasKeyChange) {
+				onDone();
+				return;
+			}
+
+			updateMyUrlKey(
+				{ id: editingActivity.id, key: normalizedEditingKey },
+				{
+					onSuccess: onDone,
+					onError: handleMutationError,
+				},
+			);
+		};
+
+		const applyUrlUpdate = (onDone: () => void) => {
+			if (!hasUrlChange && !hasExpiryChange) {
+				onDone();
+				return;
+			}
+
 			updateMyUrl(
 				{ id: editingActivity.id, url: normalizedEditUrl, expiresAt: editingExpiresOn || null },
 				{
-					onSuccess: () => {
-						if (statusChanged) {
-							updateMyUrlStatus(
-								{ id: editingActivity.id, isActive: editingIsActive },
-								{
-									onSuccess: () => {
-										toast.success("Link updated");
-										setEditingActivity(null);
-										setEditingUrl("");
-										setEditingIsActive(true);
-										setEditingExpiresOn("");
-									},
-									onError: (error) => {
-										toast.error(error.message);
-									},
-								},
-							);
-							return;
-						}
-
-						toast.success("Link expiry updated");
-						setEditingActivity(null);
-						setEditingUrl("");
-						setEditingIsActive(true);
-						setEditingExpiresOn("");
-					},
-					onError: (error) => {
-						toast.error(error.message);
-					},
+					onSuccess: onDone,
+					onError: handleMutationError,
 				},
 			);
+		};
 
-			return;
-		}
-
-		updateMyUrlStatus(
-			{ id: editingActivity.id, isActive: editingIsActive },
-			{
-				onSuccess: () => {
-					toast.success("Link status updated");
-					setEditingActivity(null);
-					setEditingUrl("");
-					setEditingIsActive(true);
-					setEditingExpiresOn("");
-				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
-			},
-		);
+		applyUrlUpdate(() => applyKeyUpdate(() => applyStatusUpdate(finishUpdate)));
 	}
 
 	function handleDeleteActivity(activity: ActivityItem) {
@@ -263,17 +286,17 @@ export default function Page() {
 				<section className="relative overflow-hidden rounded-xl border border-border/50 bg-card p-6 shadow-[0_20px_40px_rgb(26_28_28_/_5%)] md:p-8">
 					<div className="pointer-events-none absolute -top-20 -right-12 size-52 rounded-full bg-primary/10 blur-3xl" />
 					<div className="pointer-events-none absolute -bottom-24 -left-16 size-52 rounded-full bg-secondary/70 blur-3xl" />
+					<p className="mb-2 text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
+						Shortener New Link
+					</p>
 					<form
 						onSubmit={(event) => {
 							event.preventDefault();
 							handleShortenLink();
 						}}
-						className="relative flex flex-col gap-4 md:flex-row md:items-end"
+						className="relative flex flex-col gap-4 md:flex-row md:items-stretch"
 					>
 						<div className="flex-1 space-y-2">
-							<p className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
-								Shortener New Link
-							</p>
 							<div className="flex h-12 items-center rounded-md border border-border/60 bg-muted/70 px-4 transition-colors focus-within:border-primary">
 								<Link2 className="mr-3 size-4 text-muted-foreground" />
 								<input
@@ -285,10 +308,45 @@ export default function Page() {
 									className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
 								/>
 							</div>
+							<div className="flex h-10 items-center gap-2 rounded-md border border-border/60 bg-muted/50 px-3 transition-colors focus-within:border-primary">
+								<span className="text-xs font-semibold tracking-wide text-muted-foreground">
+									l.arch/
+								</span>
+								<input
+									type="text"
+									placeholder="custom-key"
+									value={customKey}
+									onChange={(event) => {
+										setCustomKey(event.target.value.toLowerCase());
+										setIsCustomKeyEdited(true);
+									}}
+									disabled={isShortening}
+									className="w-full border-none bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground"
+								/>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={regenerateCustomKey}
+									disabled={isShortening}
+									className="h-7 px-2 text-xs"
+								>
+									<RefreshCw className="size-3" />
+									Regenerate
+								</Button>
+							</div>
+							{customKeyError ? (
+								<p className="text-xs text-destructive">{customKeyError}</p>
+							) : (
+								<p className="text-xs text-muted-foreground">
+									You can edit this key. Allowed: 3-32 chars, lowercase letters, numbers, and
+									hyphens.
+								</p>
+							)}
 						</div>
 						<Button
 							type="submit"
-							disabled={!isUrlValid || isShortening}
+							disabled={!isUrlValid || !!customKeyError || isShortening}
 							className="h-12 cursor-pointer px-7 text-sm font-semibold disabled:cursor-not-allowed"
 						>
 							{isShortening ? "Shortening..." : "Shorten Link"}
@@ -302,7 +360,7 @@ export default function Page() {
 					<div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
 						<span className="flex items-center gap-1.5">
 							<CheckCircle2 className="size-3.5 text-primary" />
-							Auto-generated Alias
+							Custom or Auto Alias
 						</span>
 						<span className="flex items-center gap-1.5">
 							<CheckCircle2 className="size-3.5 text-primary" />
@@ -338,12 +396,15 @@ export default function Page() {
 					onOpenChange={handleEditModalChange}
 					url={editingUrl}
 					onUrlChange={setEditingUrl}
+					urlKey={editingKey}
+					onUrlKeyChange={(value) => setEditingKey(value.toLowerCase())}
+					urlKeyError={editingKeyError}
 					isActive={editingIsActive}
 					onIsActiveChange={setEditingIsActive}
 					expiresOn={editingExpiresOn}
 					onExpiresOnChange={setEditingExpiresOn}
 					onSave={handleSaveEditedUrl}
-					isPending={isUpdatingUrl || isUpdatingUrlStatus}
+					isPending={isUpdatingUrl || isUpdatingUrlKey || isUpdatingUrlStatus}
 				/>
 
 				<section className="grid gap-6 md:grid-cols-3">

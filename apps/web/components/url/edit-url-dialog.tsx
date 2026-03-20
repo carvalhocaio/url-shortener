@@ -24,6 +24,9 @@ interface EditUrlDialogProps {
 	onOpenChange: (open: boolean) => void;
 	url: string;
 	onUrlChange: (value: string) => void;
+	urlKey: string;
+	onUrlKeyChange: (value: string) => void;
+	urlKeyError: string | null;
 	isActive: boolean;
 	onIsActiveChange: (value: boolean) => void;
 	expiresOn: string;
@@ -37,6 +40,9 @@ export function EditUrlDialog({
 	onOpenChange,
 	url,
 	onUrlChange,
+	urlKey,
+	onUrlKeyChange,
+	urlKeyError,
 	isActive,
 	onIsActiveChange,
 	expiresOn,
@@ -59,8 +65,8 @@ export function EditUrlDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Edit destination URL</DialogTitle>
-					<DialogDescription>Update where this short link redirects.</DialogDescription>
+					<DialogTitle>Edit short link</DialogTitle>
+					<DialogDescription>Update destination, key, status, and expiry.</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-3">
 					<Input
@@ -71,6 +77,28 @@ export function EditUrlDialog({
 						disabled={isPending}
 						className="ghost-border h-10 bg-card text-xs"
 					/>
+					<div className="space-y-1">
+						<div className="ghost-border flex h-10 items-center rounded-md bg-card px-3 focus-within:border-primary">
+							<span className="pr-2 text-xs font-semibold tracking-wide text-muted-foreground">
+								l.arch/
+							</span>
+							<input
+								type="text"
+								value={urlKey}
+								onChange={(event) => onUrlKeyChange(event.target.value)}
+								placeholder="custom-key"
+								disabled={isPending}
+								className="w-full border-none bg-transparent text-xs font-medium outline-none placeholder:text-muted-foreground"
+							/>
+						</div>
+						{urlKeyError ? (
+							<p className="text-xs text-destructive">{urlKeyError}</p>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								Allowed: 3-32 chars, lowercase letters, numbers, and hyphens.
+							</p>
+						)}
+					</div>
 					<div className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
 						<div>
 							<p className="text-sm font-medium">Link active</p>
