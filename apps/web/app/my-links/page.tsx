@@ -283,19 +283,18 @@ export default function MyLinksPage() {
 													)}
 												</div>
 												<div className="min-w-0">
-													<p className="truncate text-sm font-semibold">{activity.slug}</p>
+													<div className="flex items-center gap-2">
+														<p className="truncate text-sm font-semibold">{activity.slug}</p>
+														<span className="shrink-0 text-xs font-semibold text-primary">
+															{activity.clicks.toLocaleString()} clicks
+														</span>
+													</div>
 													<p className="truncate text-xs text-muted-foreground">
 														{activity.destination}
 													</p>
 												</div>
 											</div>
 											<div className="flex items-center gap-1 sm:gap-2">
-												<div className="w-14 text-right">
-													<p className="text-sm font-medium">{activity.clicks.toLocaleString()}</p>
-													<p className="text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
-														Clicks
-													</p>
-												</div>
 												<div className="flex gap-1">
 													<Button
 														variant="ghost"
