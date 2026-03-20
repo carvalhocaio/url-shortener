@@ -18,6 +18,11 @@ const fontMono = Geist_Mono({
 export const metadata: Metadata = {
 	title: "LinkArch",
 	description: "Digital infrastructure URL management and short links.",
+	icons: {
+		icon: "/images/linkarch-icon.svg",
+		shortcut: "/images/linkarch-icon.svg",
+		apple: "/images/linkarch-icon.svg",
+	},
 };
 
 export default function RootLayout({
