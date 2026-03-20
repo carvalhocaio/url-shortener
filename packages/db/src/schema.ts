@@ -12,9 +12,9 @@ export const urls = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 		key: text("key").notNull().unique(),
-		secretKey: text("secret_key").notNull().unique(),
 		targetUrl: text("target_url").notNull(),
 		isActive: boolean("is_active").notNull().default(true),
+		isDeleted: boolean("is_deleted").notNull().default(false),
 		clicks: integer("clicks").notNull().default(0),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -2,9 +2,8 @@ import { Elysia, t } from "elysia";
 import { authMiddleware } from "../lib/auth-middleware";
 import {
 	deactivateUrlByIdAndUserId,
-	deleteUrl,
-	findBySecretKeyAndUserId,
 	getUrlsByUserId,
+	softDeleteUrlByIdAndUserId,
 	updateUrlTargetByIdAndUserId,
 } from "../services/url.service";
 import { isUrlReachable } from "../services/validator";
@@ -96,26 +95,25 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 		},
 	)
 	.delete(
-		"/urls/:secretKey",
+		"/urls/:id",
 		async ({ params, set, user }) => {
-			const record = await findBySecretKeyAndUserId(params.secretKey, user.id);
+			const deleted = await softDeleteUrlByIdAndUserId(params.id, user.id);
 
-			if (!record) {
+			if (!deleted) {
 				set.status = 404;
 				return { error: "URL not found" };
 			}
 
-			const deleted = await deleteUrl(record.id);
 			return { deleted: { id: deleted.id, key: deleted.key } };
 		},
 		{
 			auth: true,
 			params: t.Object({
-				secretKey: t.String(),
+				id: t.Numeric(),
 			}),
 			detail: {
 				tags: ["Admin"],
-				summary: "Delete one of my URLs by secret key",
+				summary: "Soft delete one of my URLs by id",
 			},
 		},
 	);

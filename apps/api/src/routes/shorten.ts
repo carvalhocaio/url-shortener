@@ -18,7 +18,6 @@ export const shortenRoutes = new Elysia({ prefix: "/api" }).use(authMiddleware).
 		return {
 			shortUrl: `${env.BASE_URL}/${record.key}`,
 			key: record.key,
-			secretKey: record.secretKey,
 			targetUrl: record.targetUrl,
 			createdAt: record.createdAt,
 		};

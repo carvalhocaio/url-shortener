@@ -1,11 +1,12 @@
-import { shortenUrl } from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-export function useShortenUrl() {
+import { type DeleteMyUrlPayload, deleteMyUrl } from "@/lib/api";
+
+export function useDeleteMyUrl() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (url: string) => shortenUrl(url),
+		mutationFn: (payload: DeleteMyUrlPayload) => deleteMyUrl(payload),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["my-urls"] });
 		},

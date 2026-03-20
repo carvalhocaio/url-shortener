@@ -9,19 +9,17 @@ import {
 	Info,
 	Link2,
 	Loader2,
-	Moon,
 	MousePointer2,
 	Star,
-	Sun,
 	TrendingUp,
 	Zap,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopbar } from "@/components/app-topbar";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -31,7 +29,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useMyUrls } from "@/hooks/use-my-urls";
 import { useShortenUrl } from "@/hooks/use-shorten-url";
 import { useUpdateMyUrl } from "@/hooks/use-update-my-url";
@@ -40,7 +38,6 @@ import type { ShortenResponse } from "@/lib/api";
 import { buildQuickStats } from "@/lib/dashboard-metrics";
 
 export default function Page() {
-	const { resolvedTheme, setTheme } = useTheme();
 	const { data: myUrls, isLoading: isLoadingMyUrls } = useMyUrls();
 	const [url, setUrl] = useState("");
 	const [createdLink, setCreatedLink] = useState<ShortenResponse | null>(null);
@@ -54,10 +51,6 @@ export default function Page() {
 
 	const normalizedUrl = url.trim();
 	const isUrlValid = isValidUrl(normalizedUrl);
-
-	function toggleTheme() {
-		setTheme(resolvedTheme === "dark" ? "light" : "dark");
-	}
 
 	function handleShortenLink() {
 		if (!isUrlValid || isShortening) {
@@ -149,17 +142,7 @@ export default function Page() {
 		<SidebarProvider>
 			<AppSidebar />
 			<SidebarInset className="surface-stage">
-				<header className="frosted sticky top-0 z-20 border-b border-border/35">
-					<div className="flex h-16 items-center justify-between gap-3 px-4 md:px-8">
-						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<SidebarTrigger className="-ml-1" />
-							<p className="text-sm font-medium">Dashboard</p>
-						</div>
-						<Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label="Toggle theme">
-							{resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-						</Button>
-					</div>
-				</header>
+				<AppTopbar title="Dashboard" />
 
 				<main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 md:px-8">
 					<section className="relative overflow-hidden rounded-xl border border-border/50 bg-card p-6 shadow-[0_20px_40px_rgb(26_28_28_/_5%)] md:p-8">

@@ -1,25 +1,37 @@
 "use client";
 
 import {
-	Bell,
-	CheckCircle2,
+	ArrowDown,
+	ArrowUp,
+	ArrowUpDown,
+	Check,
 	Copy,
+	Download,
 	Edit3,
-	Info,
+	ExternalLink,
+	Filter,
 	Link2,
 	Loader2,
-	MousePointer2,
 	Search,
-	Settings,
-	Star,
-	TrendingUp,
+	Trash2,
 	Zap,
 } from "lucide-react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppTopbar } from "@/components/app-topbar";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -28,20 +40,190 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDeleteMyUrl } from "@/hooks/use-delete-my-url";
 import { useMyUrls } from "@/hooks/use-my-urls";
+import { useShortenUrl } from "@/hooks/use-shorten-url";
 import { useUpdateMyUrl } from "@/hooks/use-update-my-url";
 import { type ActivityItem, toActivityItems, toShortUrl } from "@/lib/activity";
-import { buildQuickStats } from "@/lib/dashboard-metrics";
+import type { ShortenResponse } from "@/lib/api";
+
+const PAGE_SIZE = 10;
+
+type StatusFilter = "all" | "active" | "inactive";
+type SortField = "clicks" | "createdAt";
+type SortDirection = "asc" | "desc";
 
 export default function MyLinksPage() {
 	const { data: myUrls, isLoading: isLoadingMyUrls } = useMyUrls();
+	const { mutate: shortenLink, isPending: isShortening } = useShortenUrl();
 	const { mutate: updateMyUrl, isPending: isUpdatingUrl } = useUpdateMyUrl();
-	const quickStats = useMemo(() => buildQuickStats(myUrls ?? []), [myUrls]);
-	const recentActivity = useMemo(() => toActivityItems(myUrls ?? []), [myUrls]);
+	const { mutate: deleteMyUrl, isPending: isDeletingUrl } = useDeleteMyUrl();
+	const activities = useMemo(() => toActivityItems(myUrls ?? []), [myUrls]);
+	const myUrlsById = useMemo(() => {
+		return new Map((myUrls ?? []).map((url) => [url.id, url]));
+	}, [myUrls]);
+
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+	const [searchQuery, setSearchQuery] = useState("");
+	const [currentPage, setCurrentPage] = useState(1);
+	const [sortField, setSortField] = useState<SortField>("createdAt");
+	const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+	const [url, setUrl] = useState("");
+	const [createdLink, setCreatedLink] = useState<ShortenResponse | null>(null);
+	const [copied, setCopied] = useState(false);
+
 	const [editingActivity, setEditingActivity] = useState<ActivityItem | null>(null);
 	const [editingUrl, setEditingUrl] = useState("");
+
+	const normalizedUrl = url.trim();
+	const isUrlValid = isValidUrl(normalizedUrl);
+
+	const filteredActivities = useMemo(() => {
+		const normalizedSearch = searchQuery.trim().toLowerCase();
+
+		return activities.filter((activity) => {
+			const urlMeta = myUrlsById.get(activity.id);
+			const isActive = urlMeta?.isActive ?? true;
+
+			if (statusFilter === "active" && !isActive) {
+				return false;
+			}
+
+			if (statusFilter === "inactive" && isActive) {
+				return false;
+			}
+
+			if (!normalizedSearch) {
+				return true;
+			}
+
+			const identity = `l.arch${activity.slug}`.toLowerCase();
+			const destination = activity.destination.toLowerCase();
+
+			return identity.includes(normalizedSearch) || destination.includes(normalizedSearch);
+		});
+	}, [activities, myUrlsById, searchQuery, statusFilter]);
+
+	const sortedActivities = useMemo(() => {
+		const factor = sortDirection === "asc" ? 1 : -1;
+
+		return [...filteredActivities].sort((left, right) => {
+			if (sortField === "clicks") {
+				return (left.clicks - right.clicks) * factor;
+			}
+
+			const leftCreatedAt = myUrlsById.get(left.id)?.createdAt ?? "";
+			const rightCreatedAt = myUrlsById.get(right.id)?.createdAt ?? "";
+			const leftTimestamp = new Date(leftCreatedAt).getTime();
+			const rightTimestamp = new Date(rightCreatedAt).getTime();
+
+			const safeLeft = Number.isNaN(leftTimestamp) ? 0 : leftTimestamp;
+			const safeRight = Number.isNaN(rightTimestamp) ? 0 : rightTimestamp;
+
+			return (safeLeft - safeRight) * factor;
+		});
+	}, [filteredActivities, myUrlsById, sortDirection, sortField]);
+
+	const totalPages = Math.max(1, Math.ceil(sortedActivities.length / PAGE_SIZE));
+
+	useEffect(() => {
+		if (currentPage > totalPages) {
+			setCurrentPage(totalPages);
+		}
+	}, [currentPage, totalPages]);
+
+	const paginatedActivities = useMemo(() => {
+		const start = (currentPage - 1) * PAGE_SIZE;
+		const end = start + PAGE_SIZE;
+		return sortedActivities.slice(start, end);
+	}, [currentPage, sortedActivities]);
+
+	const rangeStart = filteredActivities.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+	const rangeEnd =
+		filteredActivities.length === 0
+			? 0
+			: Math.min(currentPage * PAGE_SIZE, filteredActivities.length);
+
+	function toggleSort(field: SortField) {
+		if (sortField === field) {
+			setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+		} else {
+			setSortField(field);
+			setSortDirection("desc");
+		}
+
+		setCurrentPage(1);
+	}
+
+	function renderSortIcon(field: SortField) {
+		if (sortField !== field) {
+			return <ArrowUpDown className="size-3.5" />;
+		}
+
+		return sortDirection === "asc" ? (
+			<ArrowUp className="size-3.5" />
+		) : (
+			<ArrowDown className="size-3.5" />
+		);
+	}
+
+	function handleOpenCreateModal() {
+		setIsCreateModalOpen(true);
+	}
+
+	function handleCreateModalChange(open: boolean) {
+		setIsCreateModalOpen(open);
+
+		if (!open) {
+			setCreatedLink(null);
+			setCopied(false);
+			setUrl("");
+		}
+	}
+
+	function handleShortenLink() {
+		if (!isUrlValid || isShortening) {
+			return;
+		}
+
+		shortenLink(normalizedUrl, {
+			onSuccess: (data) => {
+				setCreatedLink(data);
+				setCopied(false);
+				setUrl("");
+				toast.success("Short URL created");
+			},
+			onError: (error) => {
+				toast.error(error.message);
+			},
+		});
+	}
+
+	async function handleCopyShortUrl() {
+		if (!createdLink) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(createdLink.shortUrl);
+			setCopied(true);
+			toast.success("Short URL copied to clipboard");
+		} catch {
+			toast.error("Failed to copy short URL");
+		}
+	}
 
 	async function handleCopyActivityLink(activity: ActivityItem) {
 		try {
@@ -91,126 +273,426 @@ export default function MyLinksPage() {
 		);
 	}
 
+	function handleDeleteActivity(activity: ActivityItem) {
+		deleteMyUrl(
+			{ id: activity.id },
+			{
+				onSuccess: () => {
+					toast.success("Link deleted");
+				},
+				onError: (error) => {
+					toast.error(error.message);
+				},
+			},
+		);
+	}
+
+	function handleExportCsv() {
+		if (filteredActivities.length === 0) {
+			toast.error("No links to export");
+			return;
+		}
+
+		try {
+			const rows = sortedActivities.map((activity) => {
+				const urlMeta = myUrlsById.get(activity.id);
+				const isActive = urlMeta?.isActive ?? true;
+
+				return {
+					identity: `l.arch${activity.slug}`,
+					destination: activity.destination,
+					status: isActive ? "Active" : "Inactive",
+					clicks: activity.clicks,
+					createdAt: formatCreatedAt(urlMeta?.createdAt),
+					shortUrl: toShortUrl(activity.key),
+				};
+			});
+
+			const headers = ["Identity", "Destination", "Status", "Clicks", "Created At", "Short URL"];
+			const csvLines = [
+				headers.join(","),
+				...rows.map((row) =>
+					[
+						row.identity,
+						row.destination,
+						row.status,
+						String(row.clicks),
+						row.createdAt,
+						row.shortUrl,
+					]
+						.map(toCsvCell)
+						.join(","),
+				),
+			];
+
+			const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+			const downloadUrl = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = downloadUrl;
+			anchor.download = `my-links-${new Date().toISOString().slice(0, 10)}.csv`;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			URL.revokeObjectURL(downloadUrl);
+			toast.success("CSV exported successfully");
+		} catch {
+			toast.error("Failed to export CSV");
+		}
+	}
+
 	return (
 		<SidebarProvider>
 			<AppSidebar />
 			<SidebarInset className="surface-stage">
-				<header className="frosted sticky top-0 z-20 border-b border-border/35">
-					<div className="flex h-16 items-center justify-between gap-3 px-4 md:px-8">
-						<div className="flex min-w-0 flex-1 items-center gap-3">
-							<SidebarTrigger className="-ml-1" />
-							<div className="relative hidden w-full max-w-md items-center md:flex">
-								<Search className="pointer-events-none absolute left-3.5 size-4 text-muted-foreground" />
-								<input
-									type="text"
-									placeholder="Search architecture..."
-									className="h-9 w-full rounded-md border border-transparent bg-muted/80 pr-3 pl-10 text-sm transition-all outline-none focus:border-ring"
-								/>
-							</div>
-						</div>
-						<div className="flex items-center gap-2">
-							<Button variant="ghost" size="icon-sm" aria-label="Notifications">
-								<Bell className="size-4" />
-							</Button>
-							<Button variant="ghost" size="icon-sm" aria-label="Settings">
-								<Settings className="size-4" />
-							</Button>
-							<img
-								src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW-l4wYzpO87WmVA7G4qJ4xkY-5BItdSdTpss4Rj3JBk5CN25EoPkPGsXH8eqXmnWKwaUJGcTwkRkrKZMCLYIjrJgCrOWDYVtzdPBBduMgyRTqb_aF8aVCqRO8-s0JQGL0erIS_MTbYM7NivbxNMbwPAGlvYQOTnDoOh6wwgJ1VmRNsj15-Ll_kb-JFOOXG8KntcPGW-erm9JeDmjQp0NvLJNL04AAiVnOLb7F_iklUnFWMcwWSb-6xXzJRINFgRjDV0KgXtPpR7Wb"
-								alt="User avatar"
-								className="size-8 rounded-full object-cover ring-1 ring-border"
-							/>
-						</div>
-					</div>
-				</header>
+				<AppTopbar title="My Links" />
 
 				<main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 md:px-8">
-					<section className="relative overflow-hidden rounded-xl border border-border/50 bg-card p-6 shadow-[0_20px_40px_rgb(26_28_28_/_5%)] md:p-8">
-						<div className="pointer-events-none absolute -top-20 -right-12 size-52 rounded-full bg-primary/10 blur-3xl" />
-						<div className="pointer-events-none absolute -bottom-24 -left-16 size-52 rounded-full bg-secondary/70 blur-3xl" />
-						<div className="relative flex flex-col gap-4 md:flex-row md:items-end">
-							<div className="flex-1 space-y-2">
-								<p className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
-									Shortener New Link
-								</p>
-								<div className="flex h-12 items-center rounded-md border border-border/60 bg-muted/70 px-4 transition-colors focus-within:border-primary">
-									<Link2 className="mr-3 size-4 text-muted-foreground" />
-									<input
-										type="url"
-										placeholder="https://very-long-architectural-resource-url.com/structure/sub-page"
-										className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-									/>
-								</div>
-							</div>
-							<Button className="h-12 px-7 text-sm font-semibold">
-								Shorten Link
-								<Zap className="size-4" />
-							</Button>
+					<section className="flex flex-wrap items-end justify-between gap-4">
+						<div>
+							<h1 className="text-3xl font-semibold tracking-tight text-foreground">My Links</h1>
+							<p className="mt-1 text-sm text-muted-foreground">
+								Manage and monitor your digital infrastructure links.
+							</p>
 						</div>
-						<div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-							<span className="flex items-center gap-1.5">
-								<CheckCircle2 className="size-3.5 text-primary" />
-								Auto-generated Alias
-							</span>
-							<span className="flex items-center gap-1.5">
-								<CheckCircle2 className="size-3.5 text-primary" />
-								Detailed Analytics
-							</span>
-							<span className="flex items-center gap-1.5">
-								<CheckCircle2 className="size-3.5 text-primary" />
-								Custom Metadata
-							</span>
+						<div className="flex items-center gap-2">
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button variant="outline" className="h-9 px-3 text-sm">
+										<Filter className="size-4" />
+										{statusFilter === "all"
+											? "Filter"
+											: statusFilter === "active"
+												? "Active"
+												: "Inactive"}
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuRadioGroup
+										value={statusFilter}
+										onValueChange={(value) => {
+											setStatusFilter(value as StatusFilter);
+											setCurrentPage(1);
+										}}
+									>
+										<DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+										<DropdownMenuRadioItem value="active">Active</DropdownMenuRadioItem>
+										<DropdownMenuRadioItem value="inactive">Inactive</DropdownMenuRadioItem>
+									</DropdownMenuRadioGroup>
+								</DropdownMenuContent>
+							</DropdownMenu>
+
+							<Button
+								variant="outline"
+								className="h-9 px-3 text-sm"
+								onClick={handleExportCsv}
+								disabled={sortedActivities.length === 0}
+							>
+								<Download className="size-4" />
+								Export
+							</Button>
+
+							<Button className="h-9 px-3 text-sm" onClick={handleOpenCreateModal}>
+								<Zap className="size-4" />
+								New Shorten
+							</Button>
 						</div>
 					</section>
 
-					<section className="grid gap-6 md:grid-cols-3">
-						{quickStats.map((stat) => (
-							<article
-								key={stat.title}
-								className="surface-floating ghost-border flex h-40 flex-col justify-between rounded-xl p-6"
-							>
-								<div className="flex items-start justify-between">
-									<p className="text-xs font-semibold tracking-[0.13em] text-muted-foreground uppercase">
-										{stat.title}
-									</p>
-									<div
-										className={`flex size-8 items-center justify-center rounded-full ${
-											stat.tone === "positive"
-												? "bg-primary/10 text-primary"
-												: stat.tone === "featured"
-													? "bg-secondary text-secondary-foreground"
-													: "bg-muted text-muted-foreground"
-										}`}
+					<section className="relative w-full">
+						<Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+						<Input
+							type="text"
+							value={searchQuery}
+							onChange={(event) => {
+								setSearchQuery(event.target.value);
+								setCurrentPage(1);
+							}}
+							placeholder="Search by identity or destination..."
+							className="h-10 w-full bg-muted/80 pl-10 text-sm"
+						/>
+					</section>
+
+					<section className="overflow-hidden rounded-xl border border-border/40 bg-card shadow-[0_20px_40px_rgb(26_28_28_/_4%)]">
+						<div className="overflow-x-auto">
+							<table className="w-full min-w-[860px] text-left">
+								<thead className="border-b border-border/50 bg-muted/35">
+									<tr className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+										<th className="px-6 py-4">Link Identity</th>
+										<th className="px-6 py-4">Destination</th>
+										<th className="px-6 py-4 text-center">Status</th>
+										<th className="px-6 py-4 text-right">
+											<div className="flex justify-end">
+												<Button
+													variant="ghost"
+													size="xs"
+													className="h-auto gap-1 p-0 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+													onClick={() => toggleSort("clicks")}
+												>
+													Analytics
+													{renderSortIcon("clicks")}
+												</Button>
+											</div>
+										</th>
+										<th className="px-6 py-4 text-right">
+											<div className="flex justify-end">
+												<Button
+													variant="ghost"
+													size="xs"
+													className="h-auto gap-1 p-0 text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+													onClick={() => toggleSort("createdAt")}
+												>
+													Created
+													{renderSortIcon("createdAt")}
+												</Button>
+											</div>
+										</th>
+										<th className="px-6 py-4 text-right">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{isLoadingMyUrls ? (
+										<tr>
+											<td
+												colSpan={6}
+												className="px-6 py-10 text-center text-sm text-muted-foreground"
+											>
+												Loading links...
+											</td>
+										</tr>
+									) : paginatedActivities.length === 0 ? (
+										<tr>
+											<td
+												colSpan={6}
+												className="px-6 py-10 text-center text-sm text-muted-foreground"
+											>
+												No links found
+											</td>
+										</tr>
+									) : (
+										paginatedActivities.map((activity) => {
+											const urlMeta = myUrlsById.get(activity.id);
+											const isActive = urlMeta?.isActive ?? true;
+
+											return (
+												<tr
+													key={activity.id}
+													className="border-b border-border/35 transition-colors hover:bg-muted/30"
+												>
+													<td className="px-6 py-5">
+														<div className="flex items-center gap-2">
+															{activity.favicon ? (
+																<img
+																	src={activity.favicon}
+																	alt="Favicon"
+																	className="size-4 rounded-sm object-contain"
+																/>
+															) : (
+																<Link2 className="size-4 text-muted-foreground" />
+															)}
+															<a
+																href={toShortUrl(activity.key)}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-sm font-semibold underline-offset-4 transition-colors hover:text-primary hover:underline"
+															>
+																{`l.arch${activity.slug}`}
+															</a>
+														</div>
+													</td>
+													<td className="max-w-[240px] px-6 py-5 text-xs text-muted-foreground">
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<p className="truncate">{activity.destination}</p>
+															</TooltipTrigger>
+															<TooltipContent
+																side="top"
+																sideOffset={6}
+																className="max-w-none whitespace-normal break-all"
+															>
+																{activity.destination}
+															</TooltipContent>
+														</Tooltip>
+													</td>
+													<td className="px-6 py-5 text-center">
+														<span
+															className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+																isActive
+																	? "bg-primary/10 text-primary"
+																	: "bg-muted text-muted-foreground"
+															}`}
+														>
+															{isActive ? "Active" : "Inactive"}
+														</span>
+													</td>
+													<td className="px-6 py-5 text-right">
+														<div className="flex flex-col items-end">
+															<span className="text-sm font-semibold">
+																{activity.clicks.toLocaleString()}
+															</span>
+															<span className="text-[10px] text-muted-foreground">Clicks</span>
+														</div>
+													</td>
+													<td className="px-6 py-5 text-right text-xs text-muted-foreground">
+														{formatCreatedAt(urlMeta?.createdAt)}
+													</td>
+													<td className="px-6 py-5">
+														<div className="flex items-center justify-end gap-1">
+															<Button
+																variant="ghost"
+																size="icon-sm"
+																aria-label={`Copy ${activity.slug}`}
+																className="cursor-pointer"
+																onClick={() => handleCopyActivityLink(activity)}
+															>
+																<Copy className="size-4" />
+															</Button>
+															<Button
+																variant="ghost"
+																size="icon-sm"
+																aria-label={`Edit ${activity.slug}`}
+																className="cursor-pointer"
+																onClick={() => handleOpenEditActivity(activity)}
+															>
+																<Edit3 className="size-4" />
+															</Button>
+															<AlertDialog>
+																<AlertDialogTrigger asChild>
+																	<Button
+																		variant="ghost"
+																		size="icon-sm"
+																		aria-label="Delete"
+																		className="cursor-pointer"
+																	>
+																		<Trash2 className="size-4" />
+																	</Button>
+																</AlertDialogTrigger>
+																<AlertDialogContent>
+																	<AlertDialogHeader>
+																		<AlertDialogTitle>Delete this link?</AlertDialogTitle>
+																		<AlertDialogDescription>
+																			This action performs a soft delete. The link will disappear
+																			from your list but remain stored in the database.
+																		</AlertDialogDescription>
+																	</AlertDialogHeader>
+																	<AlertDialogFooter>
+																		<AlertDialogCancel>Cancel</AlertDialogCancel>
+																		<AlertDialogAction
+																			onClick={() => handleDeleteActivity(activity)}
+																			disabled={isDeletingUrl}
+																		>
+																			{isDeletingUrl ? "Deleting..." : "Delete link"}
+																		</AlertDialogAction>
+																	</AlertDialogFooter>
+																</AlertDialogContent>
+															</AlertDialog>
+														</div>
+													</td>
+												</tr>
+											);
+										})
+									)}
+								</tbody>
+							</table>
+						</div>
+						<div className="flex items-center justify-between border-t border-border/50 bg-muted/35 px-6 py-4 text-xs text-muted-foreground">
+							<p>
+								Showing <span className="font-medium text-foreground">{rangeStart}</span>-
+								<span className="font-medium text-foreground">{rangeEnd}</span> of{" "}
+								<span className="font-medium text-foreground">{filteredActivities.length}</span>{" "}
+								links
+							</p>
+							<div className="flex items-center gap-3">
+								<span className="hidden sm:inline">
+									Page <span className="font-medium text-foreground">{currentPage}</span> of{" "}
+									<span className="font-medium text-foreground">{totalPages}</span>
+								</span>
+								<div className="flex items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+										disabled={currentPage <= 1 || filteredActivities.length === 0}
 									>
-										{stat.tone === "positive" ? (
-											<MousePointer2 className="size-4" />
-										) : stat.tone === "featured" ? (
-											<Star className="size-4" />
-										) : (
-											<Info className="size-4" />
-										)}
+										Previous
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
+										disabled={currentPage >= totalPages || filteredActivities.length === 0}
+									>
+										Next
+									</Button>
+								</div>
+							</div>
+						</div>
+					</section>
+
+					<Dialog open={isCreateModalOpen} onOpenChange={handleCreateModalChange}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>New Shorten</DialogTitle>
+								<DialogDescription>
+									Create a new short URL without leaving My Links.
+								</DialogDescription>
+							</DialogHeader>
+
+							{createdLink ? (
+								<div className="space-y-3">
+									<Input
+										readOnly
+										value={createdLink.shortUrl}
+										className="ghost-border h-10 bg-card text-xs"
+									/>
+									<div className="flex flex-wrap items-center gap-2">
+										<Button
+											variant="outline"
+											onClick={handleCopyShortUrl}
+											className="cursor-pointer"
+										>
+											{copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+											{copied ? "Copied" : "Copy"}
+										</Button>
+										<Button variant="outline" asChild className="cursor-pointer">
+											<a href={createdLink.shortUrl} target="_blank" rel="noopener noreferrer">
+												Open
+												<ExternalLink className="size-4" />
+											</a>
+										</Button>
 									</div>
 								</div>
-								<div>
-									<p
-										className={`font-semibold tracking-tight ${
-											stat.tone === "featured" ? "text-2xl" : "text-4xl"
-										}`}
+							) : (
+								<form
+									onSubmit={(event) => {
+										event.preventDefault();
+										handleShortenLink();
+									}}
+									className="space-y-3"
+								>
+									<Input
+										type="url"
+										value={url}
+										onChange={(event) => setUrl(event.target.value)}
+										placeholder="https://very-long-architectural-resource-url.com/structure/sub-page"
+										disabled={isShortening}
+										className="ghost-border h-10 bg-card text-xs"
+									/>
+									<Button
+										type="submit"
+										disabled={!isUrlValid || isShortening}
+										className="w-full cursor-pointer"
 									>
-										{stat.value}
-									</p>
-									<p
-										className={`mt-1 flex items-center gap-1 text-xs font-medium ${
-											stat.tone === "positive" ? "text-primary" : "text-muted-foreground"
-										}`}
-									>
-										{stat.tone === "positive" ? <TrendingUp className="size-3.5" /> : null}
-										{stat.detail}
-									</p>
-								</div>
-							</article>
-						))}
-					</section>
+										{isShortening ? "Shortening..." : "Shorten Link"}
+										{isShortening ? (
+											<Loader2 className="size-4 animate-spin" />
+										) : (
+											<Zap className="size-4" />
+										)}
+									</Button>
+								</form>
+							)}
+						</DialogContent>
+					</Dialog>
 
 					<Dialog open={!!editingActivity} onOpenChange={handleEditModalChange}>
 						<DialogContent>
@@ -238,94 +720,33 @@ export default function MyLinksPage() {
 							</div>
 						</DialogContent>
 					</Dialog>
-
-					<section className="space-y-5">
-						<div className="flex items-center justify-between">
-							<h2 className="text-lg font-semibold tracking-tight">Recent Activity</h2>
-							<Button variant="link" className="h-auto p-0 text-xs font-semibold" asChild>
-								<Link href="/my-links">View all links</Link>
-							</Button>
-						</div>
-						<div className="space-y-3">
-							{isLoadingMyUrls ? (
-								<p className="rounded-xl border border-border/50 p-4 text-sm text-muted-foreground">
-									Loading links...
-								</p>
-							) : recentActivity.length === 0 ? (
-								<p className="rounded-xl border border-border/50 p-4 text-sm text-muted-foreground">
-									No links yet
-								</p>
-							) : (
-								recentActivity.map((activity) => (
-									<article
-										key={activity.id}
-										className="group flex flex-col gap-4 rounded-xl border border-transparent p-4 transition-all hover:border-border/60 hover:bg-muted/50 sm:flex-row sm:items-center"
-									>
-										<div className="flex min-w-0 flex-1 items-center gap-4">
-											<div className="flex size-5 shrink-0 items-center justify-center overflow-hidden">
-												{activity.favicon ? (
-													<img
-														src={activity.favicon}
-														alt="Favicon"
-														className="size-full object-contain"
-													/>
-												) : (
-													<Link2 className="size-4 text-muted-foreground/80" />
-												)}
-											</div>
-											<div className="min-w-0">
-												<div className="flex items-center gap-2">
-													<p className="truncate text-sm font-semibold">{activity.slug}</p>
-													<span className="shrink-0 text-xs font-semibold text-primary">
-														{activity.clicks.toLocaleString()} clicks
-													</span>
-												</div>
-												<p className="truncate text-xs text-muted-foreground">
-													{activity.destination}
-												</p>
-											</div>
-										</div>
-										<div className="flex items-center gap-1 sm:gap-2">
-											<div className="flex gap-1">
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													aria-label={`Copy ${activity.slug}`}
-													className="cursor-pointer"
-													onClick={() => handleCopyActivityLink(activity)}
-												>
-													<Copy className="size-4" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon-sm"
-													aria-label={`Edit ${activity.slug}`}
-													className="cursor-pointer"
-													onClick={() => handleOpenEditActivity(activity)}
-												>
-													<Edit3 className="size-4" />
-												</Button>
-											</div>
-										</div>
-									</article>
-								))
-							)}
-						</div>
-					</section>
-					<div className="md:hidden">
-						<div className="relative w-full">
-							<Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-							<input
-								type="text"
-								placeholder="Search architecture..."
-								className="h-10 w-full rounded-md border border-transparent bg-muted/80 pr-3 pl-10 text-sm outline-none focus:border-ring"
-							/>
-						</div>
-					</div>
 				</main>
 			</SidebarInset>
 		</SidebarProvider>
 	);
+}
+
+function toCsvCell(value: string) {
+	const escaped = value.replaceAll('"', '""');
+	return `"${escaped}"`;
+}
+
+function formatCreatedAt(value: string | undefined) {
+	if (!value) {
+		return "-";
+	}
+
+	const date = new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return "-";
+	}
+
+	return new Intl.DateTimeFormat("en-US", {
+		month: "short",
+		day: "2-digit",
+		year: "numeric",
+	}).format(date);
 }
 
 function isValidUrl(value: string) {

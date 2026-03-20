@@ -1,6 +1,5 @@
 const ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const KEY_LENGTH = 7;
-const SECRET_LENGTH = 32;
 
 function randomString(length: number): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(length));
@@ -13,8 +12,4 @@ function randomString(length: number): string {
 
 export function generateKey(): string {
 	return randomString(KEY_LENGTH);
-}
-
-export function generateSecretKey(): string {
-	return randomString(SECRET_LENGTH);
 }

@@ -3,7 +3,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 export interface ShortenResponse {
 	shortUrl: string;
 	key: string;
-	secretKey: string;
 	targetUrl: string;
 	createdAt: string;
 }
@@ -31,6 +30,10 @@ export interface AdminUrl {
 export interface UpdateMyUrlPayload {
 	id: number;
 	url: string;
+}
+
+export interface DeleteMyUrlPayload {
+	id: number;
 }
 
 export async function shortenUrl(url: string): Promise<ShortenResponse> {
@@ -85,6 +88,22 @@ export async function updateMyUrl(payload: UpdateMyUrlPayload): Promise<AdminUrl
 	if (!response.ok) {
 		const error: ShortenErrorResponse = await response.json();
 		throw new Error(error.error ?? "Failed to update URL");
+	}
+
+	return response.json();
+}
+
+export async function deleteMyUrl(
+	payload: DeleteMyUrlPayload,
+): Promise<{ deleted: { id: number; key: string } }> {
+	const response = await fetch(`${API_URL}/api/admin/urls/${payload.id}`, {
+		method: "DELETE",
+		credentials: "include",
+	});
+
+	if (!response.ok) {
+		const error: ShortenErrorResponse = await response.json();
+		throw new Error(error.error ?? "Failed to delete URL");
 	}
 
 	return response.json();
